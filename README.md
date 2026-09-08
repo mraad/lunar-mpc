@@ -13,6 +13,19 @@ This is a standalone Python package with its own Git history and uv lockfile.
 It needs neither the original research repository nor PyTorch. The browser app
 uses only HTML, CSS, JavaScript, and locally generated JSON.
 
+## Related projects
+
+Three complementary LunarLander control experiments:
+
+| Project | Approach |
+|---|---|
+| [Lunar RL](https://github.com/mraad/lunar-rl) | Transformer PPO policy trained through reinforcement learning |
+| [Lunar MPC](https://github.com/mraad/lunar-mpc) | Adaptive physics model with discrete beam-search predictive control |
+| [Lunar QP](https://github.com/mraad/lunar-qp) | Convex quadratic-programming MPC with discrete engine-pulse allocation |
+
+Each project documents its own setup, assumptions and evaluation. MPC is the
+repeated planning loop; QP is one way to solve the plan within that loop.
+
 ## Quick start
 
 Install [uv](https://docs.astral.sh/uv/getting-started/installation/) and Git.
