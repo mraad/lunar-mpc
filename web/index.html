@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#0b171b">
+  <title>Lunar · Adaptive control lab</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Ccircle cx='20' cy='20' r='15' fill='none' stroke='%23a9e8d0' stroke-width='2'/%3E%3Cpath d='M12 27L20 11L28 27' fill='none' stroke='%23a9e8d0' stroke-width='2'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="styles.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+<div class="shell">
+  <header class="topbar">
+    <a class="brand" href="./" aria-label="Lunar control lab home"><svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="16"/><path d="m12 28 8-17 8 17M8 24h24"/></svg><span>LUNAR<span class="brand-sub">CONTROL LAB</span></span></a>
+    <div class="top-note"><span class="status-dot"></span> A small model. A better next move.</div>
+    <a href="#how-it-works" class="text-link">How it works <span aria-hidden="true">↗</span></a>
+  </header>
+
+  <main>
+    <section class="intro" aria-labelledby="title">
+      <div><p class="eyebrow">EXPERIMENT 01 / ADAPTIVE MPC</p><h1>A landing that learns<span>.</span></h1>
+      <p class="intro-copy">Predict the next move. Notice what changed. Adjust on the way down.</p></div>
+      <div class="intro-note"><span class="tiny-orbit" aria-hidden="true">↻</span><div><strong>No policy training.</strong><span>Just physics, feedback, and a little foresight.</span></div></div>
+    </section>
+
+    <section class="experiment" aria-label="Landing experiment">
+      <div class="toolbar">
+        <div class="control-group"><span class="control-label">ENVIRONMENT</span><div class="segmented" role="group" aria-label="Environment scenario">
+          <button data-scenario="nominal" aria-pressed="false">Normal flight</button><button data-scenario="fault" aria-pressed="true">Engine fault <span class="amber-dot"></span></button>
+        </div></div>
+        <div class="control-group"><span class="control-label">CONTROLLER</span><div class="segmented" role="group" aria-label="Controller type">
+          <button data-controller="adaptive" aria-pressed="true">Adaptive</button><button data-controller="fixed" aria-pressed="false">Fixed model</button>
+        </div></div>
+        <label class="seed-control"><span class="control-label">START POSITION</span><select id="seed" aria-label="Starting seed"></select></label>
+      </div>
+
+      <div class="flight-grid">
+        <div class="viewport-panel">
+          <div class="viewport-heading"><div class="live-label"><span class="status-dot"></span> DESCENT VIEW <span class="recorded">RECORDED RUN</span></div><span id="mission-time" class="mono">T + 00.00 s</span></div>
+          <div class="scene-wrap"><canvas id="scene" aria-label="Lander descent. Solid mint line is actual motion; dashed gold line is the predicted future."></canvas>
+            <div class="scene-badge" id="flight-phase">Ready for descent</div>
+            <div class="scene-caption"><span>01</span><div>THE NEXT 1.28 SECONDS<strong>Planned ahead. Reconsidered every 20 ms.</strong></div></div>
+            <div class="legend"><span><i class="line actual"></i>Actual path</span><span><i class="line predicted"></i>Predicted path</span></div>
+          </div>
+          <div class="telemetry-strip">
+            <div><span>HEIGHT TO TARGET</span><strong id="height">—</strong><small>world units</small></div>
+            <div><span>VERTICAL SPEED</span><strong id="velocity">—</strong><small>units / second</small></div>
+            <div><span>ATTITUDE</span><strong id="angle">—</strong><small>degrees</small></div>
+            <div><span>ENGINE COMMAND</span><strong id="action" class="action-text">—</strong><small id="plan-time">—</small></div>
+          </div>
+        </div>
+
+        <aside class="model-panel" aria-label="Adaptive model explanation">
+          <div class="panel-kicker"><span class="eyebrow">THE ONBOARD MODEL</span><span id="model-mode" class="pill">ADAPTING</span></div>
+          <h2>Learn the engine.<br>Reconsider the descent.</h2>
+          <p class="model-copy" id="model-copy">The controller compares expected motion with what actually happened, then updates its engine estimate.</p>
+          <div class="estimate"><div><span class="control-label">ESTIMATED MAIN ACCELERATION</span><strong><span id="gain-value">18.0</span><small>u/s²</small></strong></div><span class="estimate-change" id="gain-change">INITIAL ESTIMATE</span></div>
+          <canvas id="model-chart" aria-label="Estimated main-engine acceleration over the recorded flight"></canvas>
+          <div class="chart-legend"><span><i class="dot mint"></i> Model estimate</span><span><i class="line muted"></i> Initial guess</span></div>
+          <div class="insight" id="insight" aria-live="polite"><span class="insight-icon" aria-hidden="true">↗</span><div><strong id="insight-title">A change is coming.</strong><p id="insight-copy">At 2 seconds, the main engine drops to 70% power. The controller won’t be told.</p></div></div>
+          <button id="jump" class="jump-button">Jump to the engine fault <span aria-hidden="true">→</span></button>
+        </aside>
+      </div>
+
+      <div class="transport">
+        <button id="play" class="play-button" disabled><span id="play-icon" aria-hidden="true">▶</span><span id="play-label">Start descent</span></button>
+        <button id="restart" class="icon-button" aria-label="Restart episode" title="Restart episode" disabled>↺</button>
+        <div class="timeline-wrap"><div class="timeline-labels"><span id="elapsed">00.00</span><span id="fault-label">ENGINE FAULT · 02.00</span><span id="duration">—</span></div><div class="range-wrap"><input id="timeline" type="range" min="0" max="100" value="0" step="1" aria-label="Replay timeline" disabled><i id="fault-marker" aria-hidden="true"></i></div></div>
+        <label class="speed-control"><span class="sr-only">Playback speed</span><select id="speed"><option value="0.5">½×</option><option value="1" selected>1×</option><option value="2">2×</option></select></label>
+      </div>
+      <div class="run-footer"><span id="load-status" role="status">Loading recorded flight…</span><span id="episode-result">Terminal checks, not a reward threshold.</span></div>
+    </section>
+
+    <section class="learning" id="how-it-works" aria-labelledby="loop-title">
+      <div class="section-heading"><div><p class="eyebrow">A QUICK INTRODUCTION</p><h2 id="loop-title">One small loop. Every step of the way.</h2></div><span class="section-aside">MPC = Model Predictive Control</span></div>
+      <div class="loop-grid">
+        <article><span class="step-number">01 / OBSERVE</span><h3>Where am I now?</h3><p>Read position, speed, tilt, and leg contact. Compare the latest motion with the model’s prediction.</p><div class="card-foot">Current observation <span>→</span></div></article>
+        <article><span class="step-number">02 / PREDICT</span><h3>What happens next?</h3><p>Imagine sequences of engine commands. Favor a steady approach, gentle descent, and a landing inside the pad.</p><div class="card-foot">1.28 seconds of foresight <span>→</span></div></article>
+        <article><span class="step-number">03 / ACT & ADAPT</span><h3>Make one move.</h3><p>Apply the first command, then look again. Adaptive MPC updates its physics estimates when the world responds differently.</p><div class="card-foot">Repeat after 20 milliseconds <span>↻</span></div></article>
+      </div>
+      <details><summary>What am I looking at—and what does it prove?</summary><div class="details-copy"><p>This app plays actual recorded runs from the Python Adaptive MPC controller. Changing a scenario or controller loads a different recorded experiment; it does not run a new optimization in your browser. The dashed future is the plan made at that exact recorded step.</p><p>The adaptive controller estimates engine effectiveness from observed motion using recursive least squares. The fixed-model version still replans after every observation, but keeps its original physics parameters. A 30% fault means the simulator reduces main-engine power; that fault setting is never passed to the controller.</p><p>In a historical 50-seed evaluation before standalone extraction, adaptive MPC passed 49/50 terminal checks with the fault, compared with 42/50 for the fixed model. Both passed 49/50 normally. The eight starts shown here were development cases. There is a known viewport-recovery failure, approximate contact modeling, and occasional planning times over 20 ms. This is a research demonstration, with no certified safety or real-time guarantee.</p></div></details>
+    </section>
+  </main>
+  <footer class="page-footer"><span>LUNAR / ADAPTIVE CONTROL LAB</span><span>Vanilla JavaScript. Local data. No external dependencies.</span></footer>
+</div>
+</body>
+</html>

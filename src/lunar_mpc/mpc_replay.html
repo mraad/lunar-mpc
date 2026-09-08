@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Adaptive MPC · Lunar landing</title>
+<style>
+:root{color-scheme:dark;font:16px/1.5 system-ui;background:#101b25;color:#e4edf2}
+body{max-width:1100px;margin:auto;padding:24px}h1{font-size:28px;margin-bottom:8px}
+p{max-width:850px;color:#b8cbd6}button,select,input{font:inherit}button,select{padding:8px 14px;background:#203543;color:inherit;border:1px solid #547080;border-radius:5px}
+label{display:inline-flex;gap:10px;align-items:center;margin-right:16px}.controls{display:flex;flex-wrap:wrap;gap:12px;margin:20px 0}
+canvas{display:block;width:100%;background:#142330;border:1px solid #36505d;border-radius:6px}
+.grid{display:grid;grid-template-columns:2fr 1fr;gap:20px}dl{display:grid;grid-template-columns:1fr 1fr;gap:10px}dt{color:#a1b7c5}dd{margin:0;text-align:right;font-variant-numeric:tabular-nums}
+#time{width:100%;margin:16px 0}#model{margin-top:20px}.legend{font-size:14px}.muted{color:#a1b7c5;font-size:14px}
+@media(max-width:750px){.grid{grid-template-columns:1fr}body{padding:12px}}
+</style>
+<h1>Adaptive MPC · Lunar landing</h1>
+<p>The controller imagines a short sequence of engine commands, applies only the first,
+then plans again. Its engine estimate changes when measured motion disagrees with its
+prediction. This replay shows recorded decisions; no training or server runs in your browser.</p>
+<div class="controls"><label>Episode <select id="episode"></select></label><button id="play">Play</button>
+<label>Speed <select id="speed"><option value="0.5">½×</option><option value="1" selected>1×</option><option value="2">2×</option></select></label></div>
+<div class="grid"><section><canvas id="scene" width="720" height="520" aria-label="Recorded lander trajectory and the controller's predicted path"></canvas>
+<label for="time">Step <output id="step"></output></label><input id="time" type="range" min="0" value="0" aria-label="Replay step">
+<p class="legend"><span style="color:#7de0cc">Solid teal: actual path</span> · <span style="color:#f9c06c">Dashed amber: predicted future</span> · flags: landing pad.</p></section>
+<aside><h2>Current decision</h2><dl id="telemetry"></dl><p id="outcome"></p><p class="muted">A high reward can still accompany a crash. “Pass” requires a settled landing, both legs in contact, and both rendered feet between the flags.</p></aside></div>
+<h2>Learning the engine strength</h2><p id="explanation"></p>
+<canvas id="model" width="1000" height="210" aria-label="Main engine acceleration estimate over the episode"></canvas>
+<p class="muted">The dashed vertical marker is the evaluator's scheduled fault. The controller is not told when it happens or how large it is.
+The model is approximate: the prediction and approach penalties are not a guarantee of safe landing.</p>
+<script>
+const DATA=__MPC_DATA__;
+const $=id=>document.getElementById(id), sc=$('scene').getContext('2d'), mc=$('model').getContext('2d');
+const names=['idle','left engine','main engine','right engine'];
+let episode=0, index=0, playing=false, last=0, accumulator=0;
+DATA.episodes.forEach((e,i)=>{const o=document.createElement('option');o.value=i;o.textContent=`Seed ${e.seed} · ${e.passed?'pass':'fail'} · return ${e.return.toFixed(1)}`;$('episode').append(o)});
+$('explanation').textContent=DATA.config.adaptive?'The estimate below is updated from observed changes in velocity. A lower estimate means the planner expects less acceleration from a main-engine firing.':'Model updates are disabled for this comparison. The planner replans from every new observation, but keeps its initial engine estimate.';
+const physical=s=>[s[0]*10,s[1]*20/3,s[2]*5,s[3]*7.5,s[4],s[5]*2.5];
+function draw(){
+const e=DATA.episodes[episode], terminal=index===e.records.length, r=e.records[Math.min(index,e.records.length-1)], st=physical(terminal?e.final_state:r.state);
+$('time').max=e.records.length;$('time').value=index;$('step').value=`${index} / ${e.records.length}`;
+const w=720,h=520,X=x=>(x+10)/20*w,Y=y=>h-(y+1.3)/14*h;
+sc.clearRect(0,0,w,h);sc.strokeStyle='#567381';sc.lineWidth=2;sc.beginPath();
+e.terrain.forEach((p,i)=>{let x=X(p[0]-10),y=Y(p[1]-e.helipad[2]-.6);i?sc.lineTo(x,y):sc.moveTo(x,y)});sc.stroke();
+for(const x of [e.helipad[0]-10,e.helipad[1]-10]){sc.strokeStyle='#e5df9c';sc.beginPath();sc.moveTo(X(x),Y(-.6));sc.lineTo(X(x),Y(.1));sc.lineTo(X(x+.3),Y(-.02));sc.stroke()}
+sc.strokeStyle='#7de0cc';sc.lineWidth=2;sc.beginPath();
+for(let k=0;k<index;k++){const p=physical(e.records[k].state);k?sc.lineTo(X(p[0]),Y(p[1])):sc.moveTo(X(p[0]),Y(p[1]))}sc.stroke();
+if(!terminal){sc.setLineDash([6,5]);sc.strokeStyle='#f9c06c';sc.beginPath();r.prediction.forEach((p,k)=>k?sc.lineTo(X(p[0]),Y(p[1])):sc.moveTo(X(p[0]),Y(p[1])));sc.stroke();sc.setLineDash([])}
+const point=(x,y)=>[st[0]+x*Math.cos(st[4])-y*Math.sin(st[4]),st[1]+x*Math.sin(st[4])+y*Math.cos(st[4])];
+sc.fillStyle='#9bc4d5';sc.beginPath();[[-.47,.57],[-.57,0],[-.57,-.33],[.57,-.33],[.57,0],[.47,.57]].forEach((p,i)=>{const q=point(...p);i?sc.lineTo(X(q[0]),Y(q[1])):sc.moveTo(X(q[0]),Y(q[1]))});sc.closePath();sc.fill();
+sc.strokeStyle='#7de0cc';sc.lineWidth=3;for(const sign of [-1,1]){const a=point(sign/3,-.24),b=point(sign*2/3,-.6);sc.beginPath();sc.moveTo(X(a[0]),Y(a[1]));sc.lineTo(X(b[0]),Y(b[1]));sc.stroke()}
+if(!terminal&&r.action===2){const a=point(-.2,-.33),b=point(.2,-.33),c=point(0,-1);sc.fillStyle='#f9c06c';sc.beginPath();sc.moveTo(X(a[0]),Y(a[1]));sc.lineTo(X(b[0]),Y(b[1]));sc.lineTo(X(c[0]),Y(c[1]));sc.closePath();sc.fill()}
+const model=terminal?r.model:r.model_before;
+const rows=[['Action',terminal?'episode ended':names[r.action]],['Time',(index/50).toFixed(2)+' s'],['Horizontal offset',st[0].toFixed(2)],['Height above target',st[1].toFixed(2)],['Horizontal speed',st[2].toFixed(2)],['Vertical speed',st[3].toFixed(2)],['Tilt',(st[4]*180/Math.PI).toFixed(1)+'°'],['Main acceleration',model[0].toFixed(2)],['Planning time',terminal?'—':r.solve_ms.toFixed(2)+' ms'],['Prediction span',terminal?'—':(r.plan.length*DATA.config.hold/50).toFixed(2)+' s']];
+$('telemetry').replaceChildren();for(const [name,value] of rows){const dt=document.createElement('dt'),dd=document.createElement('dd');dt.textContent=name;dd.textContent=value;$('telemetry').append(dt,dd)}
+$('outcome').textContent=`Episode result: ${e.passed?'PASS':'FAIL'} · ${e.landed?'settled landing':e.truncated?'time limit':'unsuccessful termination'} · pad margin ${e.pad_margin.toFixed(2)}.`;
+const W=1000,H=210,xx=k=>40+k/e.records.length*(W-60),yy=v=>H-25-(v-5)/30*(H-45);
+mc.clearRect(0,0,W,H);mc.font='14px system-ui';mc.fillStyle='#b8cbd6';for(const v of [5,15,25,35]){mc.fillText(v,5,yy(v)+4);mc.strokeStyle='#2e4654';mc.beginPath();mc.moveTo(35,yy(v));mc.lineTo(W,yy(v));mc.stroke()}
+mc.strokeStyle='#7de0cc';mc.lineWidth=2;mc.beginPath();e.records.forEach((r,k)=>k?mc.lineTo(xx(k),yy(r.model[0])):mc.moveTo(xx(k),yy(r.model[0])));mc.stroke();
+if(DATA.thrust_scale!==1&&DATA.change_step<e.records.length){mc.setLineDash([5,5]);mc.strokeStyle='#f9c06c';mc.beginPath();mc.moveTo(xx(DATA.change_step),5);mc.lineTo(xx(DATA.change_step),H);mc.stroke();mc.setLineDash([]);mc.fillText(`engine power → ${(DATA.thrust_scale*100).toFixed(0)}%`,xx(DATA.change_step)+8,17)}
+mc.strokeStyle='#e4edf2';mc.beginPath();mc.moveTo(xx(index),0);mc.lineTo(xx(index),H);mc.stroke();
+}
+$('episode').onchange=()=>{episode=Number($('episode').value);index=0;draw()};
+$('time').oninput=()=>{index=Number($('time').value);draw()};
+$('play').onclick=()=>{playing=!playing;if(playing&&index===DATA.episodes[episode].records.length)index=0;$('play').textContent=playing?'Pause':'Play';last=0};
+function animate(now){if(playing&&last){accumulator+=(now-last)/1000*50*Number($('speed').value);const n=Math.floor(accumulator);if(n){accumulator-=n;index=Math.min(DATA.episodes[episode].records.length,index+n);draw();if(index===DATA.episodes[episode].records.length){playing=false;$('play').textContent='Play'}}}last=now;requestAnimationFrame(animate)}
+draw();requestAnimationFrame(animate);
+</script>
+</html>

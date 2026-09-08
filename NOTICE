@@ -1,0 +1,8 @@
+Lunar MPC
+Copyright 2026 mraad
+
+The controller and web demonstration originated in the adaptive-MPC research
+worktree of https://github.com/mraad/lunar-rl (Apache-2.0).
+The starting-pose and terrain helpers were extracted and modified on 2026-09-08.
+This standalone package has an independent Git history, dependency graph, and
+runtime. It contains no policy weights, RL trainer, or dependency on that project.
