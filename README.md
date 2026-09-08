@@ -13,6 +13,15 @@ This is a standalone Python package with its own Git history and uv lockfile.
 It needs neither the original research repository nor PyTorch. The browser app
 uses only HTML, CSS, JavaScript, and locally generated JSON.
 
+## Showcase
+
+[![Adaptive MPC landing after an engine-power loss](docs/showcase.gif)](docs/showcase.mp4)
+
+This is an actual adaptive-controller run. At two seconds the main engine loses
+30% of its power; the controller only sees the resulting motion, updates its
+model, and replans. Click the preview for the MP4. Recreate both files with
+`uv run python scripts/record_showcase.py`; encoding requires `ffmpeg`.
+
 ## Related projects
 
 Three complementary LunarLander control experiments:
