@@ -55,3 +55,11 @@ stay at 18.0, the final frame shows the recorded terminal state, and the predict
 path disappears at the end. Check a narrow viewport as well as a desktop window.
 Space toggles playback outside controls; native buttons, selects and timeline
 support keyboard interaction. Reduced-motion preferences disable smooth scrolling.
+
+## Drawing
+
+`drawLander` is one chamfered-box lander shared byte for byte with lunar-laya and
+lunar-mpc-laya. Its coordinates are in units of one eighth of the hull radius
+with y pointing down; the scene's world frame is y up, so the lander is drawn in
+screen pixels with the rotation reversed and the footpads land on the surface.
+Recorded frames here are 20 ms apart, so playback needs no interpolation.

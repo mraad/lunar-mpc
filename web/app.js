@@ -79,6 +79,40 @@ async function load() {
   }
 }
 
+// ---------- shared lander art ----------
+// One chamfered-box lander, shared byte for byte with lunar-laya and lunar-mpc-laya.
+// Coordinates are in units of RADIUS/8 with y pointing down, so the footpads sit
+// exactly one hull radius below the centre and rest on the surface at touchdown.
+const HULL = [[-6, -7], [-4, -9], [4, -9], [6, -7], [6, 1], [4, 3], [-4, 3], [-6, 1]];
+const NOZZLE = [[-1.7, 3], [1.7, 3], [1.1, 5.2], [-1.1, 5.2]];
+const STRUTS = [[-4, 3, -7.2, 8], [4, 3, 7.2, 8]];
+const PADS_ART = [[-8.6, 8, -5.8, 8], [5.8, 8, 8.6, 8]];
+
+// Draws into the caller's frame: translate to the hull centre and rotate first.
+// `u` is one eighth of the hull radius in canvas pixels; `flip` is -1 for a y-up frame.
+function drawLander(ctx, u, { body = '#d6e6de', trim = '#f0f5eb', glass = '#3a6265', flip = 1 } = {}) {
+  const path = points => {
+    ctx.beginPath();
+    points.forEach(([x, y], i) => i ? ctx.lineTo(x * u, y * u * flip) : ctx.moveTo(x * u, y * u * flip));
+    ctx.closePath();
+  };
+  ctx.lineJoin = 'miter';
+  path(NOZZLE); ctx.fillStyle = glass; ctx.fill();
+  path(HULL); ctx.fillStyle = body; ctx.fill();
+  ctx.strokeStyle = trim; ctx.lineWidth = Math.max(0.8, 0.35 * u); ctx.stroke();
+  ctx.fillStyle = glass; ctx.fillRect(-2.2 * u, (flip > 0 ? -6.4 : 2) * u, 4.4 * u, 4.4 * u);
+  ctx.strokeStyle = trim; ctx.lineWidth = Math.max(0.7, 0.25 * u);
+  ctx.beginPath();
+  ctx.moveTo(-6 * u, -1.2 * u * flip); ctx.lineTo(6 * u, -1.2 * u * flip);
+  for (const [x0, y0, x1, y1] of STRUTS) { ctx.moveTo(x0 * u, y0 * u * flip); ctx.lineTo(x1 * u, y1 * u * flip); }
+  ctx.stroke();
+  // Footpads carry the weight, so they read heavier than the struts.
+  ctx.lineWidth = Math.max(1.2, 0.5 * u); ctx.lineCap = 'butt';
+  ctx.beginPath();
+  for (const [x0, y0, x1, y1] of PADS_ART) { ctx.moveTo(x0 * u, y0 * u * flip); ctx.lineTo(x1 * u, y1 * u * flip); }
+  ctx.stroke();
+}
+
 function drawScene(state, frame, terminal) {
   const [w, h] = sceneSize;
   if (!w || !h) return;
@@ -132,19 +166,18 @@ function drawScene(state, frame, terminal) {
     frame.p.forEach((p, i) => i ? ctx.lineTo(X(p[0]), Y(p[1])) : ctx.moveTo(X(p[0]), Y(p[1]))); ctx.stroke(); ctx.setLineDash([]);
     const end = frame.p.at(-1); ctx.beginPath(); ctx.arc(X(end[0]), Y(end[1]), 4, 0, Math.PI * 2); ctx.strokeStyle = '#eaba7d99'; ctx.stroke();
   }
-  ctx.save(); ctx.translate(X(state[0]), Y(state[1])); ctx.scale(unit, -unit); ctx.rotate(state[4]);
+  // Screen pixels with y down, so the shared art draws here exactly as it does in the
+  // other two repos; the world frame is y up, hence the reversed rotation.
+  const u = .6 * unit / 8;
+  ctx.save(); ctx.translate(X(state[0]), Y(state[1])); ctx.rotate(-state[4]);
   if (!terminal && frame.a !== 0) {
     ctx.fillStyle = '#f2c17b'; ctx.shadowColor = '#eaba7d'; ctx.shadowBlur = 15;
     ctx.beginPath();
-    if (frame.a === 2) { ctx.moveTo(-.16, -.34); ctx.lineTo(.16, -.34); ctx.lineTo(0, -(.83 + .16 * Math.sin(index * 1.7))); }
-    else { const sign = frame.a === 1 ? -1 : 1; ctx.moveTo(sign * .5, .13); ctx.lineTo(sign * .5, -.04); ctx.lineTo(sign * .95, .045); }
+    if (frame.a === 2) { ctx.moveTo(-1.6 * u, 5 * u); ctx.lineTo(1.6 * u, 5 * u); ctx.lineTo(0, (11 + 2 * Math.sin(index * 1.7)) * u); }
+    else { const sign = frame.a === 1 ? -1 : 1; ctx.moveTo(sign * 6.5 * u, -1.7 * u); ctx.lineTo(sign * 6.5 * u, .5 * u); ctx.lineTo(sign * 12.5 * u, -.6 * u); }
     ctx.closePath(); ctx.fill(); ctx.shadowBlur = 0;
   }
-  ctx.beginPath(); [[-.47,.57],[-.57,0],[-.57,-.33],[.57,-.33],[.57,0],[.47,.57]].forEach((p, i) => i ? ctx.lineTo(...p) : ctx.moveTo(...p)); ctx.closePath();
-  ctx.fillStyle = '#d6e6de'; ctx.fill(); ctx.strokeStyle = '#f0f5eb'; ctx.lineWidth = 1 / unit; ctx.stroke();
-  ctx.fillStyle = '#3a6265'; ctx.fillRect(-.18, .12, .36, .24);
-  ctx.strokeStyle = '#b1d8c6'; ctx.lineWidth = 1.4 / unit;
-  for (const sign of [-1, 1]) { ctx.beginPath(); ctx.moveTo(sign * .33, -.24); ctx.lineTo(sign * 2 / 3, -.6); ctx.stroke(); }
+  drawLander(ctx, u, { body: '#c8ded4', trim: '#f0f5eb', glass: '#2c4d52' });
   ctx.restore();
   ctx.strokeStyle = '#a4c7c066'; ctx.lineWidth = .7; ctx.beginPath(); ctx.moveTo(X(state[0]) + 13, Y(state[1]) - 5); ctx.lineTo(X(state[0]) + 25, Y(state[1]) - 17); ctx.lineTo(X(state[0]) + 66, Y(state[1]) - 17); ctx.stroke();
   ctx.fillStyle = '#b6d0c7'; ctx.font = '7px ui-monospace,monospace'; ctx.fillText('LANDER', X(state[0]) + 28, Y(state[1]) - 22);
