@@ -31,6 +31,11 @@ hash, strict landing counts, failure categories and latency distribution. Do
 not present seeds used for tuning as a fresh evaluation set. See
 [the evaluation protocol](docs/evaluation.md) and [research TODO](TODO.md).
 
+Sweep a cost change over **every** scenario before adopting it, not the quickest
+to run. An action-switching penalty measured as an improvement on nominal
+flights alone and cost eight landings on the engine fault this repository exists
+to demonstrate; the numbers are under [research limits](README.md#research-limits).
+
 The current fault injector temporarily changes a process-local Gymnasium
 constant. Run one environment at a time per process, or use separate processes.
 Do not introduce hidden simulator state into the controller's action interface.
