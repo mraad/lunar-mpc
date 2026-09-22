@@ -104,7 +104,7 @@ a QP/MIQP solver and not an exhaustive search.
 src/lunar_mpc/mpc.py          controller, online model, evaluator and CLI
 src/lunar_mpc/environment.py  starting pose and evaluator-only terrain helpers
 src/lunar_mpc/mpc_replay.html single-file replay template
-web/                         VanillaJS application, builder and regression check
+web/                         VanillaJS application (shared lander art), builder and regression check
 scripts/record_demo.py       generate the four demo experiments and build
 tests/                       controller and environment regression checks
 docs/                        introductory and research documentation
@@ -135,6 +135,16 @@ Historical evaluation on seeds 200–249 passed 49/50 strict landing checks for
 adaptive MPC under the engine fault versus 42/50 for fixed-model MPC; both
 passed 49/50 normally. These pre-extraction measurements are described, with
 their limitations, in [the evaluation notes](docs/evaluation.md).
+
+Action chatter is real and is not a defect to smooth away here. The controller
+replans at 50 Hz and executes only the first action, so it changes action on
+about 56% of steps; with a binary main engine, pulsing is how it holds a thrust
+level between off and full. Charging the stage cost for changing action, which
+is what [lunar-mpc-laya](https://github.com/mraad/lunar-mpc-laya) does with its
+three-level throttle, was measured here and rejected: at a weight of 0.5 on
+seeds 200-249 the nominal result rose from 49/50 to 50/50 while the engine
+fault fell from 49/50 to 41/50 and fixed-model from 42/50 to 24/50. Smoothness
+in this action space costs authority.
 
 A common horizontal-recovery failure, approximate leg/contact physics and
 planning-time outliers remain. Soft penalties and bounded parameter estimates
